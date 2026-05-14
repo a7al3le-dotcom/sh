@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دردشة مباشرة احترافية</title>
+    <meta name="description" content="تطبيق دردشة تفاعلي احترافي مع دعم الفيديو والمزامنة الفورية عبر Firebase">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --color-primary: #2196F3;
+            --color-primary-dark: #1976D2;
+            --color-secondary: #4CAF50;
+            --color-danger: #f44336;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #212121;
+            --color-text-secondary: #757575;
+            --color-border: #e0e0e0;
+            --color-shadow: rgba(0, 0, 0, 0.1);
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-bg: #121212;
+                --color-surface: #1e1e1e;
+                --color-text: #e0e0e0;
+                --color-text-secondary: #b0b0b0;
+                --color-border: #333333;
+                --color-shadow: rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--color-primary);
+            color: white;
+            padding: var(--spacing-md) var(--spacing-lg);
+            box-shadow: 0 2px 8px var(--color-shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .user-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-lg);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--color-secondary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--color-surface);
+            border-left: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .sidebar-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            margin-bottom: var(--spacing-sm);
+            letter-spacing: 0.5px;
+        }
+
+        .online-users {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-md);
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .user-item:hover {
+            background: var(--color-bg);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-bg);
+        }
+
+        .video-section {
+            background: var(--color-surface);
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+            display: none;
+        }
+
+        .video-section.active {
+            display: block;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: var(--radius-md);
+            background: #000;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-controls {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-md);
+            align-items: center;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .message {
+            display: flex;
+            gap: var(--spacing-sm);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+            background: var(--color-surface);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            box-shadow: 0 1px 3px var(--color-shadow);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .message-author {
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+        }
+
+        .message-text {
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .system-message {
+            text-align: center;
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            padding: var(--spacing-sm);
+            background: var(--color-bg);
+            border-radius: var(--radius-lg);
+            align-self: center;
+        }
+
+        .input-area {
+            background: var(--color-surface);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-shrink: 0;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        input[type="text"],
+        input[type="url"] {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            background: var(--color-surface);
+            color: var(--color-text);
+            transition: var(--transition);
+        }
+
+        input[type="text"]:focus,
+        input[type="url"]:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        button {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px var(--color-shadow);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--color-secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--color-primary);
+            border: 2px solid var(--color-primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .login-modal {
+            background: var(--color-surface);
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-modal h2 {
+            margin-bottom: var(--spacing-lg);
+            color: var(--color-primary);
+            text-align: center;
+        }
+
+        .login-modal .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: var(--color-danger);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            margin-top: var(--spacing-sm);
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: var(--transition);
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-modal">
+            <h2>مرحباً بك في الدردشة 👋</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="usernameInput">اسم المستخدم</label>
+                    <input type="text" id="usernameInput" name="username" required minlength="3" maxlength="20" placeholder="أدخل اسمك" aria-required="true">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <span>دخول</span>
+                </button>
+                <div id="loginError" class="error-message" role="alert"></div>
+            </form>
+        </div>
+    </div>
+
+    <header class="header">
+        <h1>💬 دردشة مباشرة</h1>
+        <div class="user-badge">
+            <span class="status-indicator"></span>
+            <span id="currentUserName">مستخدم</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <main class="chat-area">
+            <section id="videoSection" class="video-section" aria-label="قسم الفيديو المشترك">
+                <div class="video-container" id="videoContainer">
+                    <p style="color: white; text-align: center; padding: 20px;">لا يوجد فيديو مثبت حالياً</p>
+                </div>
+                <div class="video-controls">
+                    <button id="removeVideoBtn" class="btn-danger">إزالة الفيديو</button>
+                </div>
+            </section>
+
+            <div class="messages-container" id="messagesContainer" role="log" aria-live="polite" aria-label="رسائل الدردشة">
+                <div class="system-message">مرحباً! ابدأ المحادثة الآن</div>
+            </div>
+
+            <div class="input-area">
+                <form id="messageForm" style="display: flex; gap: var(--spacing-sm); width: 100%;">
+                    <div class="form-group">
+                        <label for="messageInput" class="sr-only">اكتب رسالتك</label>
+                        <input type="text" id="messageInput" name="message" placeholder="اكتب رسالتك هنا..." required aria-required="true">
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <span>إرسال</span>
+                        <span>📤</span>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <aside class="sidebar" aria-label="الشريط الجانبي">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">تثبيت فيديو</h3>
+                <form id="videoForm">
+                    <div class="form-group" style="margin-bottom: var(--spacing-sm);">
+                        <label for="videoUrlInput">رابط الفيديو (YouTube, Twitter, Vimeo)</label>
+                        <input type="url" id="videoUrlInput" name="videoUrl" placeholder="https://..." aria-describedby="videoHelp">
+                        <small id="videoHelp" style="font-size: 0.75rem; color: var(--color-text-secondary);">ألصق رابط الفيديو هنا</small>
+                    </div>
+                    <button type="submit" class="btn-secondary" style="width: 100%;">تثبيت للجميع 📌</button>
+                </form>
+            </div>
+
+            <div class="online-users">
+                <h3 class="sidebar-title">المتصلون الآن (<span id="userCount">0</span>)</h3>
+                <div id="usersList" role="list" aria-label="قائمة المستخدمين المتصلين"></div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDEm8P7zF5qPz8vXxH9vYxH9vYxH9vYxH9",
+            authDomain: "chat-app-demo.firebaseapp.com",
+            databaseURL: "https://chat-app-demo-default-rtdb.firebaseio.com",
+            projectId: "chat-app-demo",
+            storageBucket: "chat-app-demo.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456"
+        };
+
+        // Initialize Firebase with error handling
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('✅ Firebase initialized successfully');
+        } catch (error) {
+            console.error('❌ Firebase initialization error:', error);
+            alert('حدث خطأ في الاتصال بقاعدة البيانات. يرجى المحاولة لاحقاً.');
+        }
+
+        // Global state
+        let currentUser = null;
+        let userPresenceRef = null;
+
+        // DOM Elements
+        const loginOverlay = document.getElementById('loginOverlay');
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('usernameInput');
+        const loginError = document.getElementById('loginError');
+        const currentUserName = document.getElementById('currentUserName');
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const videoForm = document.getElementById('videoForm');
+        const videoUrlInput = document.getElementById('videoUrlInput');
+        const videoSection = document.getElementById('videoSection');
+        const videoContainer = document.getElementById('videoContainer');
+        const removeVideoBtn = document.getElementById('removeVideoBtn');
+        const usersList = document.getElementById('usersList');
+        const userCount = document.getElementById('userCount');
+
+        // Helper: Get initials
+        function getInitials(name) {
+            return name.charAt(0).toUpperCase();
+        }
+
+        // Helper: Format time
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Helper: Extract video ID from URL
+        function extractVideoId(url) {
+            try {
+                const urlObj = new URL(url);
+                
+                // YouTube
+                if (urlObj.hostname.includes('youtube.com')) {
+                    return { type: 'youtube', id: urlObj.searchParams.get('v') };
+                } else if (urlObj.hostname.includes('youtu.be')) {
+                    return { type: 'youtube', id: urlObj.pathname.slice(1) };
+                }
+                
+                // Twitter
+                if (urlObj.hostname.includes('twitter.com') || urlObj.hostname.includes('x.com')) {
+                    const match = urlObj.pathname.match(/\/status\/(\d+)/);
+                    return match ? { type: 'twitter', id: match[1] } : null;
+                }
+                
+                // Vimeo
+                if (urlObj.hostname.includes('vimeo.com')) {
+                    const match = urlObj.pathname.match(/\/(\d+)/);
+                    return match ? { type: 'vimeo', id: match[1] } : null;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error parsing video URL:', error);
+                return null;
+            }
+        }
+
+        // Helper: Render video
+        function renderVideo(videoData) {
+            if (!videoData) {
+                videoSection.classList.remove('active');
+                return;
+            }
+
+            const { type, id } = videoData;
+            let embedHTML = '';
+
+            if (type === 'youtube') {
+                embedHTML = `<iframe src="https://www.youtube.com/embed/${id}?enablejsapi=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="فيديو يوتيوب مضمن"></iframe>`;
+            } else if (type === 'vimeo') {
+                embedHTML = `<iframe src="https://player.vimeo.com/video/${id}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen title="فيديو Vimeo مضمن"></iframe>`;
+            } else if (type === 'twitter') {
+                embedHTML = `<iframe src="https://platform.twitter.com/embed/Tweet.html?id=${id}" allowfullscreen title="تغريدة مضمنة"></iframe>`;
+            }
+
+            videoContainer.innerHTML = embedHTML;
+            videoSection.classList.add('active');
+        }
+
+        // Login handler
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+
+            if (username.length < 3) {
+                loginError.textContent = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل';
+                loginError.classList.add('active');
+                return;
+            }
+
+            try {
+                currentUser = {
+                    name: username,
+                    id: Date.now().toString(),
+                    joinedAt: Date.now()
+                };
+
+                // Add user to online users
+                userPresenceRef = database.ref('users/' + currentUser.id);
+                userPresenceRef.set({
+                    name: currentUser.name,
+                    joinedAt: currentUser.joinedAt
+                });
+
+                // Remove user on disconnect
+                userPresenceRef.onDisconnect().remove();
+
+                // Update UI
+                currentUserName.textContent = currentUser.name;
+                loginOverlay.style.display = 'none';
+
+                // Add system message
+                addSystemMessage(`انضم ${currentUser.name} إلى الدردشة`);
+
+                console.log('✅ User logged in:', currentUser.name);
+            } catch (error) {
+                console.error('❌ Login error:', error);
+                loginError.textContent = 'حدث خطأ أثناء تسجيل الدخول';
+                loginError.classList.add('active');
+            }
+        });
+
+        // Send message handler
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const messageText = messageInput.value.trim();
+
+            if (!messageText || !currentUser) return;
+
+            try {
+                const message = {
+                    author: currentUser.name,
+                    text: messageText,
+                    timestamp: Date.now()
+                };
+
+                database.ref('messages').push(message);
+                messageInput.value = '';
+                console.log('✅ Message sent');
+            } catch (error) {
+                console.error('❌ Error sending message:', error);
+                alert('حدث خطأ أثناء إرسال الرسالة');
+            }
+        });
+
+        // Pin video handler
+        videoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const videoUrl = videoUrlInput.value.trim();
+
+            if (!videoUrl) return;
+
+            try {
+                const videoData = extractVideoId(videoUrl);
+                
+                if (!videoData) {
+                    alert('رابط الفيديو غير صالح. يرجى استخدام روابط YouTube أو Twitter أو Vimeo');
+                    return;
+                }
+
+                database.ref('pinnedVideo').set(videoData);
+                videoUrlInput.value = '';
+                console.log('✅ Video pinned:', videoData);
+            } catch (error) {
+                console.error('❌ Error pinning video:', error);
+                alert('حدث خطأ أثناء تثبيت الفيديو');
+            }
+        });
+
+        // Remove video handler
+        removeVideoBtn.addEventListener('click', () => {
+            try {
+                database.ref('pinnedVideo').remove();
+                console.log('✅ Video removed');
+            } catch (error) {
+                console.error('❌ Error removing video:', error);
+                alert('حدث خطأ أثناء إزالة الفيديو');
+            }
+        });
+
+        // Add message to UI
+        function addMessage(message) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message';
+            messageEl.innerHTML = `
+                <div class="message-avatar">${getInitials(message.author)}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author">${message.author}</span>
+                        <span class="message-time">${formatTime(message.timestamp)}</span>
+                    </div>
+                    <div class="message-text">${message.text}</div>
+                </div>
+            `;
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Add system message
+        function addSystemMessage(text) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'system-message';
+            messageEl.textContent = text;
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Update users list
+        function updateUsersList(users) {
+            usersList.innerHTML = '';
+            const userArray = Object.values(users || {});
+            userCount.textContent = userArray.length;
+
+            userArray.forEach(user => {
+                const userEl = document.createElement('div');
+                userEl.className = 'user-item';
+                userEl.setAttribute('role', 'listitem');
+                userEl.innerHTML = `
+                    <div class="user-avatar">${getInitials(user.name)}</div>
+                    <span>${user.name}</span>
+                `;
+                usersList.appendChild(userEl);
+            });
+        }
+
+        // Listen to messages
+        try {
+            database.ref('messages').limitToLast(50).on('child_added', (snapshot) => {
+                const message = snapshot.val();
+                addMessage(message);
+            });
+        } catch (error) {
+            console.error('❌ Error listening to messages:', error);
+        }
+
+        // Listen to pinned video
+        try {
+            database.ref('pinnedVideo').on('value', (snapshot) => {
+                renderVideo(snapshot.val());
+            });
+        } catch (error) {
+            console.error('❌ Error listening to video:', error);
+        }
+
+        // Listen to online users
+        try {
+            database.ref('users').on('value', (snapshot) => {
+                updateUsersList(snapshot.val());
+            });
+        } catch (error) {
+            console.error('❌ Error listening to users:', error);
+        }
+
+        // Focus on username input
+        usernameInput.focus();
+    </script>
+</body>
+</html>
+
