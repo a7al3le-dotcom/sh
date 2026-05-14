@@ -297,27 +297,27 @@
         }
         .video-selector-btn.active { background: #e50914; }
 
-        /* تم إزالة الخلفية والتمويه من مؤشر "يكتب..." */
-        #typingIndicator {
-            background: transparent;
-            backdrop-filter: none;
-            color: #ffd54a;
-            font-size: 13px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-right: 15px;
-            margin-bottom: 5px;
-            direction: ltr;
-            text-align: right;
-        }
-        .typing-wrapper {
-            display: flex;
-            justify-content: flex-start;
-            padding-right: 15px;
-            min-height: 32px;
-        }
-
+   #typingIndicator {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    color: #ffd54a;
+    font-size: 13px;
+    padding: 0;          /* إزالة الحشوة الداخلية */
+    margin: 0;
+    display: inline-block;
+    direction: ltr;
+    text-align: right;
+}
+       .typing-wrapper {
+    display: flex;
+    justify-content: flex-start;
+    padding-right: 15px;
+    min-height: 32px;
+    background: transparent !important;
+    backdrop-filter: none !important;
+}
         /* تحسينات الجوال */
         @media (max-width: 600px) {
             #pinnedVideoPlayer {
